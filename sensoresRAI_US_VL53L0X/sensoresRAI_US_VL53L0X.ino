@@ -1,5 +1,5 @@
 #include "Adafruit_VL53L0X.h"
-
+//un ultrasonico y un lase VL53L0X
 #define TRIG1 7 
 #define ECHO1 6// name pin
 
