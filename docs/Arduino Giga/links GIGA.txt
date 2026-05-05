@@ -1,0 +1,10 @@
+En este archivo hay links con información útill para el Arduino Giga
+
+1. Documentación oficial del Arduino GIGA R1. Contiene (entre otros):
+https://docs.arduino.cc/hardware/giga-r1-wifi/?_gl=1*v9gxj1*_up*MQ..*_ga*MTkyODc4NTU2NS4xNzc4MDE0NTUw*_ga_NEXN8H46L5*czE3NzgwMTQ1NDYkbzEkZzAkdDE3NzgwMTQ1NDYkajYwJGwwJGgxMTUwNTQ5Mjk4
+ - Datasheet
+ - Manual de usario
+ - Modelo 3D
+
+2. Programación de Arduino GIGA con microPython
+https://docs.arduino.cc/micropython/board-examples/giga-r1-wifi/
