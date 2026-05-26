@@ -1,0 +1,6 @@
+"Qty","Value","Footprint"
+"1","Arduino_Giga_R1_WiFi_Shield","arduino-library:Arduino_Giga_R1_WiFi_Shield"
+"3","1N4007","Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+"2","2K2","Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
+"2","Conn_01x04_Pin","Connector_Molex:Molex_KK-254_AE-6410-04A_1x04_P2.54mm_Vertical"
+"4","Conn_01x06_Pin","Connector_Molex:Molex_KK-254_AE-6410-06A_1x06_P2.54mm_Vertical"
