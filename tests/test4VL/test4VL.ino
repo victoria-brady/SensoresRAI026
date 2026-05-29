@@ -38,7 +38,7 @@ void loop() {
     }
     Serial.print(F("\t"));
   }
-
+  Serial.print(F("\n"));
   // --- 2. Retardo del ciclo ---
   delay(100);
 }
