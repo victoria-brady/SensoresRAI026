@@ -7,10 +7,10 @@
 #include "Adafruit_VL53L0X.h"
 
 // Ultrasonic Pins
-#define TRIG1 9
-#define ECHO1 8
-#define TRIG2 12
-#define ECHO2 13
+#define TRIG1 8
+#define ECHO1 9
+#define TRIG2 13
+#define ECHO2 12
 float dist1_US, dist2_US;
 
 // ToF I2C Addresses
