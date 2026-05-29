@@ -1,15 +1,23 @@
 /*
- * object_detect_3.ino
+ * object_detect_V2.ino
  * Robot perro RAI — Object Detection / Sensor Array
  *
- * Lee 4x VL53L0X + 2x HC-SR04 y manda las distancias crudas
- * a la Jetson Orin Nano por USB Serial cada 50ms.
+ * Lee 4x VL53L0X + 2x HC-SR04 y manda las distancias crudas cada 50ms:
+ *   - por WiFi (UDP) a una IP:puerto configurables (la PC en la red del robot,
+ *     o en el futuro la Jetson Orin Nano). Es lo que consume el brainstem.
+ *   - por USB Serial en paralelo (debug / fallback).
+ *
+ * Placa: Arduino GIGA R1 WiFi (módulo WiFi integrado, librería <WiFi.h>).
  *
  * Salida: "SVL1,VL2,VL3,VL4,US1,US2E"
  *   S   = inicio del mensaje
  *   E   = fin del mensaje
  *   Valores en mm, 0 = sin lectura válida ese ciclo
  *   Ejemplo: "S342,891,0,1205,654,0E"
+ *
+ * El brainstem escucha estos paquetes en UDP :43899 (ver
+ * basicoperation/brainstem/core/brainstem_config.h::kSensorUdpPort y
+ * basicoperation/shared/sensor_layout.h para el contrato del formato).
  *
  * Sensores y posiciones:
  *   VL1 = diagonal izq-adelante   (XSHUT=D2)
@@ -29,19 +37,44 @@
 
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
+#include <WiFi.h>        // Arduino GIGA R1 WiFi — módulo integrado
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CONFIGURACIÓN
+// CONFIGURACIÓN — RED (EDITAR ESTO)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Red WiFi del robot a la que se conecta el Arduino.
+#define WIFI_SSID     "RED_DEL_ROBOT"     // ← SSID de la red del robot
+#define WIFI_PASS     "PASSWORD"          // ← password
+
+// Destino de los paquetes UDP: la IP de TU compu (o la Jetson) dentro de la red
+// del robot, y el puerto donde escucha el brainstem (kSensorUdpPort = 43899).
+#define DEST_IP       "192.168.1.50"      // ← IP de la compu que corre el brainstem
+#define DEST_PORT     43899               // = brainstem kSensorUdpPort
+#define LOCAL_UDP_PORT 43898              // puerto local del Arduino (cualquiera libre)
+
+// ENABLE_WIFI:
+//   0 = el Arduino sólo manda por USB Serial (DEFAULT). Usalo cuando el Arduino
+//       va cableado por USB a una laptop: esa laptop corre el bridge
+//       serial_to_udp_bridge.py que reenvía a la compu/Jetson con el brainstem.
+//       No hace falta SSID ni WiFi en el Arduino.
+//   1 = el Arduino se conecta a la WiFi del robot y manda UDP directo (sin
+//       laptop intermedia). Sólo para el futuro montaje on-board; requiere
+//       WIFI_SSID/WIFI_PASS válidos o el reintento de conexión frena el loop.
+#define ENABLE_WIFI    0
+#define WIFI_RETRY_MS  3000  // cada cuánto reintentar si se cae el WiFi
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN — SENSORES
 // ═══════════════════════════════════════════════════════════════════════════════
 #define LOOP_MS       50   // 20Hz — cada 50ms se manda un paquete
 #define MEDIAN_N       5   // Muestras para filtro de mediana
 #define MAX_FALLOS     5   // Fallos consecutivos antes de reiniciar sensor
 
 // ─── Pines VL53L0X ───────────────────────────────────────────────────────────
-#define XSHUT_1   2   // VL1 diagonal izq-adelante
-#define XSHUT_2   3   // VL2 diagonal der-adelante
-#define XSHUT_3   4   // VL3 diagonal izq-atrás
-#define XSHUT_4   5   // VL4 diagonal der-atrás
+#define XSHUT_1   2   // VL1 diagonal atras izquierda
+#define XSHUT_2   3   // VL2 diagonal atras derecha
+#define XSHUT_3   4   // VL3 diagonal adelante izquierda
+#define XSHUT_4   5   // VL4 diagonal adelante  derecha
 
 // ─── Pines HC-SR04 ───────────────────────────────────────────────────────────
 #define TRIG_1    8   // US1 centro-adelante
@@ -56,10 +89,10 @@
 #define ADDR_4   0x33
 
 // ─── Límites de validez de lecturas ──────────────────────────────────────────
-#define VL_MIN      20    // mm mínimo válido para VL53L0X
+#define VL_MIN      0    // mm mínimo válido para VL53L0X
 #define VL_MAX    1200    // mm máximo válido para VL53L0X
 #define VL_ERR    8190    // valor de error que devuelve Adafruit
-#define US_MIN     200    // mm mínimo válido para HC-SR04
+#define US_MIN     0    // mm mínimo válido para HC-SR04
 #define US_MAX    3500    // mm máximo válido para HC-SR04
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -86,6 +119,12 @@ uint8_t  buf_idx = 0;
 
 // ─── Temporización ───────────────────────────────────────────────────────────
 unsigned long ultimo_ms = 0;
+
+// ─── WiFi / UDP ────────────────────────────────────────────────────────────────
+WiFiUDP   Udp;
+IPAddress destIp;
+bool          wifi_iniciado   = false;  // Udp.begin() ya corrió
+unsigned long ultimo_intento  = 0;      // último intento de (re)conexión WiFi
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERRUPCIONES HC-SR04
@@ -145,6 +184,40 @@ void setup() {
   // Inicializar buffers de mediana en cero
   memset(buf_vl, 0, sizeof(buf_vl));
   memset(buf_us, 0, sizeof(buf_us));
+
+  // WiFi: parsear IP destino y lanzar la primera conexión (no bloqueante en el
+  // loop — si falla se reintenta cada WIFI_RETRY_MS sin trabar los sensores).
+#if ENABLE_WIFI
+  destIp.fromString(DEST_IP);
+  conectarWiFi();
+#endif
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WiFi — conexión con timeout corto (no bloquea el loop indefinidamente)
+// ═══════════════════════════════════════════════════════════════════════════════
+void conectarWiFi() {
+  ultimo_intento = millis();
+  Serial.print("WiFi: conectando a "); Serial.println(WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  // Esperamos hasta 8s a asociarnos. Si no engancha, seguimos igual y el loop
+  // reintenta más tarde — los sensores nunca dejan de leerse.
+  unsigned long t0 = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 8000) {
+    delay(200);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Udp.begin(LOCAL_UDP_PORT);
+    wifi_iniciado = true;
+    Serial.print("WiFi OK. IP local: "); Serial.println(WiFi.localIP());
+    Serial.print("Enviando UDP a "); Serial.print(DEST_IP);
+    Serial.print(":"); Serial.println(DEST_PORT);
+  } else {
+    wifi_iniciado = false;
+    Serial.println("WiFi: sin conexion (reintento luego, sigo por Serial)");
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -168,17 +241,31 @@ void loop() {
   uint16_t dus[2];
   for (int i = 0; i < 2; i++) dus[i] = leerUS(i);
 
-  // 4. Mandar a la Jetson con protocolo S...E
-  //    Formato: SVL1,VL2,VL3,VL4,US1,US2E
-  //    0 = sin lectura válida ese ciclo
-  Serial.print('S');
-  Serial.print(dvl[0]); Serial.print(',');  // VL1 izq-adelante
-  Serial.print(dvl[1]); Serial.print(',');  // VL2 der-adelante
-  Serial.print(dvl[2]); Serial.print(',');  // VL3 izq-atrás
-  Serial.print(dvl[3]); Serial.print(',');  // VL4 der-atrás
-  Serial.print(dus[0]); Serial.print(',');  // US1 centro-adelante
-  Serial.print(dus[1]);                     // US2 centro-atrás
-  Serial.println('E');
+  // 4. Armar el paquete con protocolo S...E
+  //    Formato: SVL1,VL2,VL3,VL4,US1,US2E   (0 = sin lectura válida ese ciclo)
+  char msg[48];
+  int len = snprintf(msg, sizeof(msg), "S%u,%u,%u,%u,%u,%uE",
+                     dvl[0],   // VL1 izq-adelante
+                     dvl[1],   // VL2 der-adelante
+                     dvl[2],   // VL3 izq-atrás
+                     dvl[3],   // VL4 der-atrás
+                     dus[0],   // US1 centro-adelante
+                     dus[1]);  // US2 centro-atrás
+
+  // 4a. Serial (debug / fallback) — println agrega el \n que el parser tolera.
+  Serial.println(msg);
+
+  // 4b. WiFi UDP — el datagrama que consume el brainstem (:43899).
+#if ENABLE_WIFI
+  if (wifi_iniciado && WiFi.status() == WL_CONNECTED) {
+    Udp.beginPacket(destIp, DEST_PORT);
+    Udp.write((const uint8_t*)msg, len);
+    Udp.endPacket();
+  } else if (millis() - ultimo_intento >= WIFI_RETRY_MS) {
+    // Caído o nunca conectó: reintentar sin bloquear el ritmo de sensado.
+    conectarWiFi();
+  }
+#endif
 
   buf_idx++;
 }
