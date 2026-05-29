@@ -38,10 +38,10 @@
 #define MAX_FALLOS     5   // Fallos consecutivos antes de reiniciar sensor
 
 // ─── Pines VL53L0X ───────────────────────────────────────────────────────────
-#define XSHUT_1   2   // VL1 diagonal izq-adelante
-#define XSHUT_2   3   // VL2 diagonal der-adelante
-#define XSHUT_3   4   // VL3 diagonal izq-atrás
-#define XSHUT_4   5   // VL4 diagonal der-atrás
+#define XSHUT_1   2   // VL1 diagonal atras izquierda
+#define XSHUT_2   3   // VL2 diagonal atras derecha
+#define XSHUT_3   4   // VL3 diagonal adelante izquierda
+#define XSHUT_4   5   // VL4 diagonal adelante  derecha
 
 // ─── Pines HC-SR04 ───────────────────────────────────────────────────────────
 #define TRIG_1    8   // US1 centro-adelante
@@ -56,10 +56,10 @@
 #define ADDR_4   0x33
 
 // ─── Límites de validez de lecturas ──────────────────────────────────────────
-#define VL_MIN      20    // mm mínimo válido para VL53L0X
+#define VL_MIN      0    // mm mínimo válido para VL53L0X
 #define VL_MAX    1200    // mm máximo válido para VL53L0X
 #define VL_ERR    8190    // valor de error que devuelve Adafruit
-#define US_MIN     200    // mm mínimo válido para HC-SR04
+#define US_MIN     0    // mm mínimo válido para HC-SR04
 #define US_MAX    3500    // mm máximo válido para HC-SR04
 
 // ═══════════════════════════════════════════════════════════════════════════════
