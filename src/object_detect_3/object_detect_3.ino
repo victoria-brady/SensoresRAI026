@@ -1,5 +1,5 @@
 /*
- * object_detect_2.ino
+ * object_detect_3.ino
  * Robot perro RAI — Object Detection / Sensor Array
  *
  * Lee 4x VL53L0X + 2x HC-SR04 y manda las distancias crudas
@@ -125,8 +125,8 @@ void setup() {
   // Pines ultrasónicos
   pinMode(TRIG_1, OUTPUT); digitalWrite(TRIG_1, LOW);
   pinMode(TRIG_2, OUTPUT); digitalWrite(TRIG_2, LOW);
-  pinMode(ECHO_1, INPUT);
-  pinMode(ECHO_2, INPUT);
+  pinMode(ECHO_1, INPUT_PULLUP);
+  pinMode(ECHO_2, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ECHO_1), ISR_ECHO_1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ECHO_2), ISR_ECHO_2, CHANGE);
 
@@ -148,7 +148,7 @@ void setup() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOOP PRINCIPAL — nunca se bloquea
+// LOOP PRINCAL — nunca se bloquea
 // ═══════════════════════════════════════════════════════════════════════════════
 void loop() {
   unsigned long ahora = millis();
