@@ -1,35 +1,23 @@
 /*
- * object_detect_2.ino
+ * object_detect_3.ino
  * Robot perro RAI — Object Detection / Sensor Array
  *
- * Lee 4x VL53L0X + 2x HC-SR04 y manda el estado de 6 zonas
+ * Lee 4x VL53L0X + 2x HC-SR04 y manda las distancias crudas
  * a la Jetson Orin Nano por USB Serial cada 50ms.
  *
- * Protocolo de salida:
- *   S Z1,Z2,Z3,Z4,Z5,Z6 E
- *   S = inicio del mensaje
- *   E = fin del mensaje
- *   Ejemplo: "S0,2,1,0,0,0E"
+ * Salida: "SVL1,VL2,VL3,VL4,US1,US2E"
+ *   S   = inicio del mensaje
+ *   E   = fin del mensaje
+ *   Valores en mm, 0 = sin lectura válida ese ciclo
+ *   Ejemplo: "S342,891,0,1205,654,0E"
  *
- * Niveles por zona:
- *   0 = libre
- *   1 = objeto lejos  (1000mm - 2000mm)
- *   2 = objeto cerca  (menos de 1000mm)
- *
- * Zonas:
- *   Z1 = VL1  diagonal izq-adelante   (XSHUT=D2)
- *   Z2 = US1 + VL1 + VL2 fusionados   centro-adelante (TRIG=D8, ECHO=D9)
- *   Z3 = VL2  diagonal der-adelante   (XSHUT=D3)
- *   Z4 = VL3  diagonal izq-atrás      (XSHUT=D4)
- *   Z5 = US2 + VL3 + VL4 fusionados   centro-atrás    (TRIG=D13, ECHO=D12)
- *   Z6 = VL4  diagonal der-atrás      (XSHUT=D5)
- *
- * Fusión conservadora (seguridad ante todo):
- *   - VL lee bien ropa, personas, superficies suaves
- *   - US lee bien vidrio, ventanas, paredes
- *   - Basta que UN sensor detecte para reportar obstáculo
- *   - Los DOS deben coincidir en libre para reportar libre
- *   Esto garantiza que el robot nunca ignore una ventana ni una persona.
+ * Sensores y posiciones:
+ *   VL1 = diagonal izq-adelante   (XSHUT=D2)
+ *   VL2 = diagonal der-adelante   (XSHUT=D3)
+ *   VL3 = diagonal izq-atrás      (XSHUT=D4)
+ *   VL4 = diagonal der-atrás      (XSHUT=D5)
+ *   US1 = centro-adelante         (TRIG=D8, ECHO=D9)
+ *   US2 = centro-atrás            (TRIG=D13, ECHO=D12)
  *
  * Robustez:
  *   - HC-SR04 por interrupciones (D9 y D12) — nunca bloquea el loop
@@ -43,14 +31,11 @@
 #include <Adafruit_VL53L0X.h>
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CONFIGURACIÓN — ajustar según pruebas reales
+// CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════════════
-#define DIST_CERCA_MM      1000   // Menos de esto → nivel 2 (cerca)
-#define DIST_LEJOS_MM      2000   // Menos de esto → nivel 1 (lejos), sino → 0
-
-#define LOOP_MS              50   // 20Hz — cada 50ms se manda un paquete
-#define MEDIAN_N              5   // Muestras para filtro de mediana
-#define MAX_FALLOS            5   // Fallos consecutivos antes de reiniciar sensor
+#define LOOP_MS       50   // 20Hz — cada 50ms se manda un paquete
+#define MEDIAN_N       5   // Muestras para filtro de mediana
+#define MAX_FALLOS     5   // Fallos consecutivos antes de reiniciar sensor
 
 // ─── Pines VL53L0X ───────────────────────────────────────────────────────────
 #define XSHUT_1   2   // VL1 diagonal izq-adelante
@@ -71,11 +56,11 @@
 #define ADDR_4   0x33
 
 // ─── Límites de validez de lecturas ──────────────────────────────────────────
-#define VL_MIN      20    // mm mínimo válido para VL
-#define VL_MAX    1200    // mm máximo válido para VL
+#define VL_MIN      20    // mm mínimo válido para VL53L0X
+#define VL_MAX    1200    // mm máximo válido para VL53L0X
 #define VL_ERR    8190    // valor de error que devuelve Adafruit
-#define US_MIN     200    // mm mínimo válido para ultrasonido
-#define US_MAX    3500    // mm máximo válido para ultrasonido
+#define US_MIN     200    // mm mínimo válido para HC-SR04
+#define US_MAX    3500    // mm máximo válido para HC-SR04
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VARIABLES GLOBALES
@@ -88,7 +73,7 @@ uint8_t vl_xshut[4]  = {XSHUT_1, XSHUT_2, XSHUT_3, XSHUT_4};
 uint8_t vl_addr[4]   = {ADDR_1,  ADDR_2,  ADDR_3,  ADDR_4};
 uint8_t vl_fallos[4] = {0, 0, 0, 0};
 
-// ─── HC-SR04 (manejado por interrupciones) ───────────────────────────────────
+// ─── HC-SR04 (interrupciones) ────────────────────────────────────────────────
 volatile unsigned long us_inicio[2]   = {0, 0};
 volatile unsigned long us_duracion[2] = {0, 0};
 volatile bool          us_listo[2]    = {false, false};
@@ -105,7 +90,7 @@ unsigned long ultimo_ms = 0;
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERRUPCIONES HC-SR04
 // El ECHO sube cuando llega el pulso y baja cuando termina.
-// La ISR mide exactamente cuánto duró el pulso sin bloquear el loop.
+// La ISR mide exactamente cuánto duró sin bloquear el loop.
 // ═══════════════════════════════════════════════════════════════════════════════
 void ISR_ECHO_1() {
   if (digitalRead(ECHO_1) == HIGH) {
@@ -140,8 +125,8 @@ void setup() {
   // Pines ultrasónicos
   pinMode(TRIG_1, OUTPUT); digitalWrite(TRIG_1, LOW);
   pinMode(TRIG_2, OUTPUT); digitalWrite(TRIG_2, LOW);
-  pinMode(ECHO_1, INPUT);
-  pinMode(ECHO_2, INPUT);
+  pinMode(ECHO_1, INPUT_PULLUP);
+  pinMode(ECHO_2, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ECHO_1), ISR_ECHO_1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ECHO_2), ISR_ECHO_2, CHANGE);
 
@@ -163,7 +148,7 @@ void setup() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOOP PRINCIPAL — nunca se bloquea
+// LOOP PRINCAL — nunca se bloquea
 // ═══════════════════════════════════════════════════════════════════════════════
 void loop() {
   unsigned long ahora = millis();
@@ -175,33 +160,24 @@ void loop() {
   dispararUS(0, TRIG_1);
   dispararUS(1, TRIG_2);
 
-  // 2. Leer VL53L0X
+  // 2. Leer VL53L0X — distancias crudas filtradas en mm
   uint16_t dvl[4];
   for (int i = 0; i < 4; i++) dvl[i] = leerVL(i);
 
-  // 3. Leer HC-SR04
-  //    Lee el resultado del echo capturado por la ISR en el ciclo anterior
+  // 3. Leer HC-SR04 — resultado capturado por ISR en ciclo anterior
   uint16_t dus[2];
   for (int i = 0; i < 2; i++) dus[i] = leerUS(i);
 
-  // 4. Calcular nivel por zona
-  uint8_t z[6];
-  z[0] = nivel(dvl[0]);                      // Z1 = VL1 izq-adelante
-  z[1] = fusionar(dus[0], dvl[0], dvl[1]);   // Z2 = centro-adelante (fusión)
-  z[2] = nivel(dvl[1]);                      // Z3 = VL2 der-adelante
-  z[3] = nivel(dvl[2]);                      // Z4 = VL3 izq-atrás
-  z[4] = fusionar(dus[1], dvl[2], dvl[3]);   // Z5 = centro-atrás (fusión)
-  z[5] = nivel(dvl[3]);                      // Z6 = VL4 der-atrás
-
-  // 5. Mandar a la Jetson con protocolo S...E
-  //    S = inicio, E = fin — la Jetson siempre sabe dónde empieza y termina
+  // 4. Mandar a la Jetson con protocolo S...E
+  //    Formato: SVL1,VL2,VL3,VL4,US1,US2E
+  //    0 = sin lectura válida ese ciclo
   Serial.print('S');
-  Serial.print(z[0]); Serial.print(',');
-  Serial.print(z[1]); Serial.print(',');
-  Serial.print(z[2]); Serial.print(',');
-  Serial.print(z[3]); Serial.print(',');
-  Serial.print(z[4]); Serial.print(',');
-  Serial.print(z[5]);
+  Serial.print(dvl[0]); Serial.print(',');  // VL1 izq-adelante
+  Serial.print(dvl[1]); Serial.print(',');  // VL2 der-adelante
+  Serial.print(dvl[2]); Serial.print(',');  // VL3 izq-atrás
+  Serial.print(dvl[3]); Serial.print(',');  // VL4 der-atrás
+  Serial.print(dus[0]); Serial.print(',');  // US1 centro-adelante
+  Serial.print(dus[1]);                     // US2 centro-atrás
   Serial.println('E');
 
   buf_idx++;
@@ -224,7 +200,7 @@ bool iniciarVL(uint8_t i) {
   return true;
 }
 
-// Lee un VL53L0X. Si falla muchas veces, lo reinicia solo.
+// Lee un VL53L0X con filtro de mediana y watchdog
 uint16_t leerVL(uint8_t i) {
   // Si el sensor estaba caído, intentar reiniciarlo
   if (!vl_ok[i]) {
@@ -251,8 +227,8 @@ uint16_t leerVL(uint8_t i) {
       vl_ok[i]     = iniciarVL(i);
       vl_fallos[i] = 0;
     }
-    // Devolver último valor válido del buffer para no mandar basura
-    return buf_vl[i][(buf_idx + MEDIAN_N - 1) % MEDIAN_N];
+    // Devolver 0 — sin lectura válida este ciclo
+    return 0;
   }
 
   vl_fallos[i] = 0;
@@ -264,7 +240,7 @@ uint16_t leerVL(uint8_t i) {
 // HC-SR04 — disparo no bloqueante + lectura desde ISR
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Manda el pulso de 10us al TRIG. La ISR se encarga de medir el ECHO.
+// Manda el pulso de 10us al TRIG. La ISR mide el ECHO.
 void dispararUS(uint8_t i, uint8_t trig) {
   us_listo[i] = false;
   digitalWrite(trig, LOW);  delayMicroseconds(2);
@@ -275,7 +251,7 @@ void dispararUS(uint8_t i, uint8_t trig) {
 // Lee la distancia calculada por la ISR del ciclo anterior
 uint16_t leerUS(uint8_t i) {
   if (!us_listo[i]) {
-    // No llegó el echo — puede ser timeout o sensor desconectado
+    // No llegó el echo — timeout o sensor desconectado
     us_fallos[i]++;
     if (us_fallos[i] >= MAX_FALLOS) us_fallos[i] = 0;
     return 0;
@@ -283,33 +259,13 @@ uint16_t leerUS(uint8_t i) {
   us_fallos[i] = 0;
 
   // Convertir duración del pulso a mm
-  // Velocidad del sonido: 343 m/s = 0.343 mm/us, ida y vuelta → /2
+  // Velocidad del sonido: 343 m/s → ida y vuelta ÷ 2
   uint16_t mm = (uint16_t)((us_duracion[i] * 343UL) / 2000UL);
 
   if (mm < US_MIN || mm > US_MAX) return 0;
 
   buf_us[i][buf_idx % MEDIAN_N] = mm;
   return mediana(buf_us[i]);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// LÓGICA DE ZONAS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Convierte distancia en mm al nivel de peligro de la zona
-uint8_t nivel(uint16_t mm) {
-  if (mm == 0)             return 0;  // Sin lectura válida = libre
-  if (mm < DIST_CERCA_MM)  return 2;  // Cerca  = peligro alto
-  if (mm < DIST_LEJOS_MM)  return 1;  // Lejos  = precaución
-  return 0;                           // Muy lejos = libre
-}
-
-// Fusiona zona central: toma el nivel más alto (más peligroso) de los tres
-// Conservador: basta que UN sensor vea algo para reportar obstáculo
-// → US ve vidrio aunque VL falle
-// → VL ve ropa/persona aunque US falle
-uint8_t fusionar(uint16_t dus, uint16_t dvl_a, uint16_t dvl_b) {
-  return max(nivel(dus), max(nivel(dvl_a), nivel(dvl_b)));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
