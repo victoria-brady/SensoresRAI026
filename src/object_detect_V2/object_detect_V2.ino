@@ -52,7 +52,15 @@
 #define DEST_PORT     43899               // = brainstem kSensorUdpPort
 #define LOCAL_UDP_PORT 43898              // puerto local del Arduino (cualquiera libre)
 
-#define ENABLE_WIFI    1   // 1 = mandar por UDP; 0 = sólo Serial (debug)
+// ENABLE_WIFI:
+//   0 = el Arduino sólo manda por USB Serial (DEFAULT). Usalo cuando el Arduino
+//       va cableado por USB a una laptop: esa laptop corre el bridge
+//       serial_to_udp_bridge.py que reenvía a la compu/Jetson con el brainstem.
+//       No hace falta SSID ni WiFi en el Arduino.
+//   1 = el Arduino se conecta a la WiFi del robot y manda UDP directo (sin
+//       laptop intermedia). Sólo para el futuro montaje on-board; requiere
+//       WIFI_SSID/WIFI_PASS válidos o el reintento de conexión frena el loop.
+#define ENABLE_WIFI    0
 #define WIFI_RETRY_MS  3000  // cada cuánto reintentar si se cae el WiFi
 
 // ═══════════════════════════════════════════════════════════════════════════════
