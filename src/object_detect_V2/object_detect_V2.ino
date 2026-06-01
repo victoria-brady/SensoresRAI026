@@ -66,8 +66,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN — SENSORES
 // ═══════════════════════════════════════════════════════════════════════════════
-#define LOOP_MS       50   // 20Hz — cada 50ms se manda un paquete
-#define MEDIAN_N       5   // Muestras para filtro de mediana
+#define LOOP_MS       50   // objetivo 20Hz (ver nota de latencia abajo)
+#define MEDIAN_N       3   // Muestras del filtro de mediana. Bajado de 5 a 3:
+                           // a 5, un obstáculo súbito tardaba ~3 ciclos en
+                           // dominar la mediana (lag peligroso para el reflejo).
+                           // A 3 reacciona en ~2 ciclos y sigue filtrando ruido.
 #define MAX_FALLOS     5   // Fallos consecutivos antes de reiniciar sensor
 
 // ─── Pines VL53L0X ───────────────────────────────────────────────────────────
@@ -283,6 +286,11 @@ bool iniciarVL(uint8_t i) {
     return false;
   }
   vl[i].setAddress(vl_addr[i]);
+  // Modo HIGH_SPEED: baja el timing budget de ~33ms a ~20ms por medición.
+  // Con 4 sensores eso recorta el loop de ~130ms a ~80ms (de ~7Hz a ~12Hz),
+  // que es lo que más impacta en la latencia del reflejo de frenado.
+  // Si tu versión de la librería no tiene configSensor, comentá esta línea.
+  vl[i].configSensor(Adafruit_VL53L0X::VL53L0X_SENSE_HIGH_SPEED);
   vl_fallos[i] = 0;
   return true;
 }
