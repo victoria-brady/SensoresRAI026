@@ -9,8 +9,8 @@
 #define NUM_US         2
 
 // ─── Límites del Filtro Estadístico (Tolerancia a picos) ─────────────────────
-#define MAX_STD_DEV_VL 50  // mm máximos de desvío tolerado para láser
-#define MAX_STD_DEV_US 100 // mm máximos de desvío tolerado para ultrasonido
+#define MAX_STD_DEV_VL 500  // mm máximos de desvío tolerado para láser
+#define MAX_STD_DEV_US 500 // mm máximos de desvío tolerado para ultrasonido
 
 // ─── Pines VL53L0X ───────────────────────────────────────────────────────────
 #define XSHUT_1   2

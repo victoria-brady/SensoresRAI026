@@ -2,18 +2,18 @@
 #include <Arduino.h>
 
 void sendSerialPacket(const SensorPacket& data) {
-    Serial.print('S');
+    //Serial.print('S');
     
     // 1. FL: Front Left (VL índice 0)
-    Serial.print(data.vl[0]);
+    //Serial.print(data.vl[0]);
     Serial.print(',');
     
     // 2. FC: Front Center (US índice 0)
-    Serial.print(data.us[0]);
+    //Serial.print(data.us[0]);
     Serial.print(',');
     
     // 3. FR: Front Right (VL índice 1)
-    Serial.print(data.vl[1]);
+    //Serial.print(data.vl[1]);
     Serial.print(',');
     
     // 4. BR: Back Right (VL índice 2)
@@ -27,5 +27,7 @@ void sendSerialPacket(const SensorPacket& data) {
     // 6. BL: Back Left (VL índice 3)
     Serial.print(data.vl[3]);
     
-    Serial.println('E');
+    //Serial.println('E');
+    Serial.println();
+
 }

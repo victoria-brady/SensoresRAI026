@@ -2,8 +2,8 @@
 #include "config.h"
 #include <string.h>
 
-uint16_t buf_vl[NUM_VL][MEDIAN_N] = {0};
-uint16_t buf_us[NUM_US][MEDIAN_N] = {0};
+uint16_t buf_vl[NUM_VL][FILTER_N] = {0};
+uint16_t buf_us[NUM_US][FILTER_N] = {0};
 uint8_t  buf_idx_vl[NUM_VL]       = {0};
 uint8_t  buf_idx_us[NUM_US]       = {0};
 
