@@ -3,10 +3,10 @@
 
 // ─── Configuración General ───────────────────────────────────────────────────
 #define LOOP_MS       50
-#define FILTER_N       5
-#define MAX_FALLOS     5
-#define NUM_VL         4
-#define NUM_US         2
+#define FILTER_N      5
+#define MAX_FALLOS    5
+#define NUM_VL        4
+#define NUM_US        2
 
 // ─── Límites del Filtro Estadístico (Tolerancia a picos) ─────────────────────
 #define MAX_STD_DEV_VL 500  // mm máximos de desvío tolerado para láser
@@ -31,8 +31,8 @@
 #define ADDR_4   0x33
 
 // ─── Límites de validez ──────────────────────────────────────────────────────
-#define VL_MIN      20
-#define VL_MAX    1200
+#define VL_MIN      0
+#define VL_MAX    9000
 #define VL_ERR    8190
-#define US_MIN     200
-#define US_MAX    3500
+#define US_MIN     0
+#define US_MAX    9000

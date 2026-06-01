@@ -15,11 +15,14 @@ void procesarSensores() {
     // 2. Capturar y filtrar láseres
     for (int i = 0; i < NUM_VL; i++) {
         paquete.vl[i] = applyFilterVL(i, getRawVL53L0X(i));
+        //paquete.vl[i] = getRawVL53L0X(i);
+
     }
     
     // 3. Capturar y filtrar ultrasonidos (datos del ciclo anterior)
     for (int i = 0; i < NUM_US; i++) {
         paquete.us[i] = applyFilterUS(i, getRawUS(i));
+        //paquete.us[i] = getRawUS(i);
     }
     
     // 4. Enviar datos estructurados
