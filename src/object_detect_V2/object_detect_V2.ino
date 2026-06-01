@@ -245,12 +245,13 @@ void loop() {
   //    Formato: SVL1,VL2,VL3,VL4,US1,US2E   (0 = sin lectura válida ese ciclo)
   char msg[48];
   int len = snprintf(msg, sizeof(msg), "S%u,%u,%u,%u,%u,%uE",
-                     dvl[0],   // VL1 izq-adelante
-                     dvl[1],   // VL2 der-adelante
+                        // VL1 izq-adelante
                      dvl[2],   // VL3 izq-atrás
-                     dvl[3],   // VL4 der-atrás
-                     dus[0],   // US1 centro-adelante
-                     dus[1]);  // US2 centro-atrás
+                     dus[0],
+                     dvl[3],
+                     dvl[1],   // VL2 der-adelante
+                     dus[1],   // US1 centro-adelante
+                     dvl[0]);  // US2 centro-atrás
 
   // 4a. Serial (debug / fallback) — println agrega el \n que el parser tolera.
   Serial.println(msg);

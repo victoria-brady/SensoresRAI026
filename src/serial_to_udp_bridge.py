@@ -96,7 +96,7 @@ def main() -> None:
                         continue
                     sock.sendto(line.encode("ascii"), dest)
                     sent += 1
-                    if args.echo or sent == 1 or sent % 200 == 0:
+                    if args.echo or sent == 1 or sent % 1 == 0:
                         print(f"[bridge] #{sent} {line}")
         except serial.SerialException as e:
             print(f"[bridge] no pude abrir/leer {args.port} ({e}); reintento en 2s...")
