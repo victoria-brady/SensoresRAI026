@@ -148,7 +148,7 @@ void setup() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LOOP PRINCAL — nunca se bloquea
+// LOOP PRINCIPAL — nunca se bloquea
 // ═══════════════════════════════════════════════════════════════════════════════
 void loop() {
   unsigned long ahora = millis();
