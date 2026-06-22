@@ -1,5 +1,7 @@
 #pragma once
 #include <Arduino.h>
+NEW SKETCH
+
 
 // ─── Configuración General ───────────────────────────────────────────────────
 #define LOOP_MS       50
