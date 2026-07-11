@@ -1,6 +1,5 @@
 #pragma once
 #include <Arduino.h>
-NEW SKETCH
 
 
 // ─── Configuración General ───────────────────────────────────────────────────

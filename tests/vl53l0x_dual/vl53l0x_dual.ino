@@ -5,8 +5,8 @@
 #define LOX2_ADDRESS 0x31
 
 // set the pins to shutdown
-#define SHT_LOX1 5
-#define SHT_LOX2 4
+#define SHT_LOX1 3
+#define SHT_LOX2 5
 
 // objects for the vl53l0x
 Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
