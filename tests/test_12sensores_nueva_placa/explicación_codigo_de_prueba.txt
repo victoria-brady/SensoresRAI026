@@ -1,0 +1,2 @@
+Este código es solo para probar los sensores. No uso attachInterrupt para 
+asegurarme que no haya problemas por solapamiento de pines.
