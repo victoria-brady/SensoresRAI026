@@ -1,0 +1,13 @@
+Este código hace dos cosas por separado:
+
+en el setup:
+El código intentará adjuntar una interrupción (attachInterrupt) a 
+cada pin de ECHO uno por uno. Si hay un conflicto de hardware, el 
+SO del Arduino GIGA (Mbed OS) va a avisar y así sabemos que todo 
+mal con ese pin. Yo me la juego que va a haber entre D12 y D50. 
+
+en el loop:
+Si todos los pines logran inicializarse sin colapsar, el bucle 
+principal enviará un pulso de Trigger a cada sensor para verificar 
+si las interrupciones realmente se están disparando al recibir el eco.
+En este caso van a tener que jugar con los sensores y ver que onda.
