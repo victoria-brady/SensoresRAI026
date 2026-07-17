@@ -82,6 +82,8 @@ def main() -> None:
     print("[bridge] (cerra el Monitor Serie del Arduino IDE si ves 'Access is denied')")
 
     sent = 0
+    rate_t0 = time.time()
+    rate_n0 = 0
     while True:
         try:
             # timeout corto: si el Arduino no manda, igual reintentamos limpio.
@@ -96,8 +98,27 @@ def main() -> None:
                         continue
                     sock.sendto(line.encode("ascii"), dest)
                     sent += 1
-                    if args.echo or sent == 1 or sent % 1 == 0:
+
+                    # Log throttleado. Imprimir CADA paquete satura la consola de
+                    # Windows, y si la consola se traba (seleccionar texto en cmd
+                    # la congela) el print bloquea el loop: el serial se encola y
+                    # los datagramas salen despues en rafaga, viejos — un delay
+                    # que se confunde con "el sensor frena tarde". Con --echo se
+                    # ve todo; sin --echo, solo el primer paquete.
+                    if args.echo:
                         print(f"[bridge] #{sent} {line}")
+                    elif sent == 1:
+                        print(f"[bridge] #1 (primer paquete OK) {line}")
+
+                    # Tasa cada 5 s. Compara este pkt/s con el 'dt=' que imprime
+                    # el brainstem (sensor_thread): si el bridge manda 15 pkt/s
+                    # pero el brainstem ve ~5, hay perdida/retraso en la red.
+                    now = time.time()
+                    if now - rate_t0 >= 5.0:
+                        rate = (sent - rate_n0) / (now - rate_t0)
+                        print(f"[bridge] {rate:.1f} pkt/s (total {sent})")
+                        rate_t0 = now
+                        rate_n0 = sent
         except serial.SerialException as e:
             print(f"[bridge] no pude abrir/leer {args.port} ({e}); reintento en 2s...")
             time.sleep(2)

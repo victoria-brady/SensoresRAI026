@@ -207,6 +207,15 @@ void loop() {
     if (i < NUM_US - 1) delay(US_SETTLE_MS);
   }
 
+  // Contrato con el brainstem: 0 = "sin lectura válida este ciclo". El sketch
+  // usa -1 internamente para inválido (mediana/buffers), pero un '-' en la
+  // trama hace que el parser del brainstem descarte el PAQUETE ENTERO — y eso
+  // pasa justo cuando un sensor falla (VL en pared especular con RangeStatus!=0,
+  // o US sin eco), que es el peor momento para quedarse ciego de los 6.
+  // Clampear a 0 mantiene vivos a los demás aunque uno falle.
+  for (int i = 0; i < NUM_VL; i++) if (dvl[i] < 0) dvl[i] = 0;
+  for (int i = 0; i < NUM_US; i++) if (dus[i] < 0) dus[i] = 0;
+
   // Trama estructurada estricta sin metadata adicional
   char msg[64];
   int len = snprintf(msg, sizeof(msg), "S%d,%d,%d,%d,%d,%dE",
