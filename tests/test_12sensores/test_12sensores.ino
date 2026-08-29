@@ -85,6 +85,9 @@ void setup() {
         while (millis() - start_time < 200) {  // ← 200ms timeout
             if (vl_sensors[i].begin(VL_ADDR[i], false, &Wire)) {
                 vl_sensors[i].setAddress(VL_ADDR[i]);
+                // Permite lecturas con retornos de láser más débiles en entornos ruidosos
+                vl_sensors[i].setLimitCheckEnable(VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, true);
+                vl_sensors[i].setLimitCheckValue(VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t)(0.1 * 65536));
                 sensor_ok = true;
                 break;
             }
@@ -157,13 +160,11 @@ void readAllVL() {
         
         VL53L0X_RangingMeasurementData_t measurement;
         vl_sensors[i].rangingTest(&measurement, false);
-        
-        // RangeStatus: 0 = OK, 4 = Out of Range
-        if (measurement.RangeStatus != 0) {
+    
+        if (measurement.RangeStatus == 4) { //4 = out of range posta
             vl_distance[i] = -1;
         } else {
-            uint16_t distance_mm = measurement.RangeMilliMeter;
-            vl_distance[i] = distance_mm / 10;  // Convertir a cm
+            vl_distance[i] = measurement.RangeMilliMeter / 10; // Distancia en cm
         }
     }
 }
