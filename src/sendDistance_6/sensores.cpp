@@ -1,25 +1,5 @@
+// ═══════════ sensores.cpp ═══════════
 #include "sensores.hpp"
-
-SensorModule::SensorModule()
-  : m_id(0), m_trigPin(0), m_echoPin(0), m_xshutPin(0), m_i2cAddr(0),
-    m_vlOk(false), m_usOk(false), m_bufferIdx(0),
-    m_lastVlCm(-1), m_lastUsCm(-1), m_fusedCm(0) {
-  for (uint8_t i = 0; i < MEDIAN_WINDOW; i++) m_usBuffer[i] = -1;
-}
-
-SensorModule::SensorModule(uint8_t id, uint8_t trigPin, uint8_t echoPin, uint8_t xshutPin, uint8_t i2cAddr)
-  : m_id(id), m_trigPin(trigPin), m_echoPin(echoPin), m_xshutPin(xshutPin), m_i2cAddr(i2cAddr),
-    m_vlOk(false), m_usOk(false), m_bufferIdx(0),
-    m_lastVlCm(-1), m_lastUsCm(-1), m_fusedCm(0) {
-  for (uint8_t i = 0; i < MEDIAN_WINDOW; i++) m_usBuffer[i] = -1;
-}
-
-void SensorModule::initUS() {
-  pinMode(m_trigPin, OUTPUT);
-  digitalWrite(m_trigPin, LOW);
-  pinMode(m_echoPin, INPUT_PULLUP);
-  m_usOk = true;
-}
 
 bool SensorModule::initVL(TwoWire* wireInstance) {
   pinMode(m_xshutPin, OUTPUT);
@@ -55,11 +35,9 @@ int16_t SensorModule::readVL() {
   m_vlSensor.rangingTest(&measure, false);
 
   // Aceptar cualquier lectura excepto Error 4 (Out of Range insalvable)
-  if (measure.RangeStatus == 4) {
-    m_lastVlCm = -1;
-  } else {
-    m_lastVlCm = static_cast<int16_t>(measure.RangeMilliMeter / 10);
-  }
+  m_lastVlCm = (measure.RangeStatus == 4)
+                 ? -1
+                 : static_cast<int16_t>(measure.RangeMilliMeter / 10);
   return m_lastVlCm;
 }
 
@@ -73,8 +51,8 @@ int16_t SensorModule::readUS() {
   delayMicroseconds(10);
   digitalWrite(m_trigPin, LOW);
 
-  // Timeout de 20.000 us (~340 cm max) para no congelar el loop
-  unsigned long duration = pulseIn(m_echoPin, HIGH, 20000UL);
+  // Timeout optimizado a 9000 us (~155 cm máx) para evitar bloqueos del loop
+  unsigned long duration = pulseIn(m_echoPin, HIGH, 9000UL);
   int16_t rawCm = (duration == 0) ? -1 : static_cast<int16_t>(duration / 58);
 
   // Aplicar filtro de mediana para descartar picos por telas o ángulos oblicuos
@@ -84,11 +62,7 @@ int16_t SensorModule::readUS() {
   int16_t filteredUs = computeMedian(m_usBuffer, MEDIAN_WINDOW);
 
   // Compensación de offset: Alinear marco de referencia con el sensor VL (+6 cm)
-  if (filteredUs > 0) {
-    m_lastUsCm = filteredUs + US_OFFSET_CM;
-  } else {
-    m_lastUsCm = -1;
-  }
+  m_lastUsCm = (filteredUs > 0) ? filteredUs + US_OFFSET_CM : -1;
 
   return m_lastUsCm;
 }
@@ -129,13 +103,7 @@ int16_t SensorModule::updateAndFuse() {
 
   // 2. Matriz de Priorización y Fusión
   if (vl > 0 && us > 0) {
-    if (vl <= 120) {
-      // Rango corto/medio: Prioridad ToF (alta precisión óptica)
-      m_fusedCm = vl;
-    } else {
-      // Rango largo (> 120 cm): Prioridad Ultrasonido
-      m_fusedCm = us;
-    }
+    m_fusedCm = (vl <= 120) ? vl : us;  // Corto/medio: ToF | Largo: Ultrasonido
   } else if (vl > 0) {
     m_fusedCm = vl;  // Fallback automático a VL
   } else if (us > 0) {
