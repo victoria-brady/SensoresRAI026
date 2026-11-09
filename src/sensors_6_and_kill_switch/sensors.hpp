@@ -1,6 +1,6 @@
-// ═══════════ sensores.hpp ═══════════
-#ifndef SENSORES_HPP
-#define SENSORES_HPP
+// ═══════════ sensors.hpp ═══════════
+#ifndef SENSORS_HPP
+#define SENSORS_HPP
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -70,4 +70,4 @@ public:
   bool isUSOk() const { return m_usOk; }
 };
 
-#endif  // SENSORES_HPP
+#endif  // SENSORS_HPP

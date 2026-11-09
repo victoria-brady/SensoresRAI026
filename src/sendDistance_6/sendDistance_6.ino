@@ -1,6 +1,6 @@
 // ═══════════ sendDistance_6.ino ═══════════
 #include <Wire.h>
-#include "sensores.hpp"
+#include "sensors.hpp"
 
 #define NUM_MODULES 6
 #define LOOP_PERIOD_MS 25 // Constant execution at 40 Hz

@@ -1,6 +1,6 @@
-// ═══════════ sendDistance_6_with_KillSwitch.ino ═══════════
+// ═══════════ sensors_6_and_kill_switch.ino ═══════════
 #include <Wire.h>
-#include "sensores.hpp"
+#include "sensors.hpp"
 #include "HardwareInterruptManager.hpp"
 
 #define NUM_MODULES 6

@@ -1,5 +1,5 @@
-// ═══════════ sensores.cpp ═══════════
-#include "sensores.hpp"
+// ═══════════ sensors.cpp ═══════════
+#include "sensors.hpp"
 
 bool SensorModule::initVL(TwoWire* wireInstance) {
   pinMode(m_xshutPin, OUTPUT);
