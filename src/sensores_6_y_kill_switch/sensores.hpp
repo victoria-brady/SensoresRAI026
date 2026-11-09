@@ -6,7 +6,7 @@
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
 
-#define MEDIAN_WINDOW 5  // Ventana del filtro de mediana para ultrasonido
+#define MEDIAN_WINDOW 5  // Median filter window for the ultrasonic sensor
 
 class SensorModule {
 private:
@@ -25,14 +25,14 @@ private:
   int16_t m_lastVlCm;
   int16_t m_lastUsCm;
   int16_t m_fusedCm;
-  
-  unsigned long m_lastUsDuration; // Almacena el tiempo inyectado por el driver EXTI
 
-  // Compensación física: Ultrasonido está 6 cm más adelante que el VL
+  unsigned long m_lastUsDuration; // Stores the duration injected by the EXTI driver
+
+  // Physical compensation: the ultrasonic sensor sits 6 cm ahead of the VL
   static constexpr int16_t US_OFFSET_CM = 6;
 
   int16_t computeMedian(int16_t* buf, uint8_t size);
-  int16_t processUSTime(); // Reemplaza a readUS()
+  int16_t processUSTime(); // Replaces readUS()
 
 public:
   explicit SensorModule(uint8_t trigPin = 0, uint8_t echoPin = 0, uint8_t xshutPin = 0, uint8_t i2cAddr = 0)
@@ -42,24 +42,24 @@ public:
     for (uint8_t i = 0; i < MEDIAN_WINDOW; i++) m_usBuffer[i] = -1;
   }
 
-  // Boot no bloqueante para el VL53L0X
+  // Non-blocking boot for the VL53L0X
   bool initVL(TwoWire* wireInstance = &Wire);
-  
-  // Nueva función para inyectar el tiempo leído por las interrupciones externas
+
+  // New function to inject the duration measured by the external interrupts
   void setUltrasonicTime(unsigned long durationMicroseconds);
-  
-  // Actualización de estado
+
+  // State update
   int16_t readVL();
   int16_t updateAndFuse();
 
   void initUS() {
     pinMode(m_trigPin, OUTPUT);
     digitalWrite(m_trigPin, LOW);
-    // pinMode(m_echoPin, INPUT_PULLUP) se ha movido al InterruptManager.
+    // pinMode(m_echoPin, INPUT_PULLUP) has been moved to the InterruptManager.
     m_usOk = true;
   }
 
-  // Método público para disparar el pulso TRIG sin bloquear el procesador
+  // Public method to fire the TRIG pulse without blocking the processor
   void triggerUS();
 
   int16_t getVLDistance() const { return m_lastVlCm; }

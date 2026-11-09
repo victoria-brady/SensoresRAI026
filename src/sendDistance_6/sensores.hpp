@@ -6,7 +6,7 @@
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
 
-#define MEDIAN_WINDOW 5  // Ventana del filtro de mediana para ultrasonido
+#define MEDIAN_WINDOW 5  // Median filter window for the ultrasonic sensor
 
 class SensorModule {
 private:
@@ -26,7 +26,7 @@ private:
   int16_t m_lastUsCm;
   int16_t m_fusedCm;
 
-  // Compensación física: Ultrasonido está 6 cm más adelante que el VL
+  // Physical compensation: the ultrasonic sensor sits 6 cm ahead of the VL
   static constexpr int16_t US_OFFSET_CM = 6;
 
   int16_t computeMedian(int16_t* buf, uint8_t size);
@@ -39,7 +39,7 @@ public:
     for (uint8_t i = 0; i < MEDIAN_WINDOW; i++) m_usBuffer[i] = -1;
   }
 
-  // Boot no bloqueante para el VL53L0X
+  // Non-blocking boot for the VL53L0X
   bool initVL(TwoWire* wireInstance = &Wire);
   int16_t readVL();
   int16_t readUS();

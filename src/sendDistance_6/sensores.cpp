@@ -6,7 +6,7 @@ bool SensorModule::initVL(TwoWire* wireInstance) {
   digitalWrite(m_xshutPin, HIGH);
   delay(20);
 
-  // Timeout de inicialización de 150 ms para evitar bloqueos del sistema
+  // 150 ms init timeout to avoid system lockups
   unsigned long t0 = millis();
   m_vlOk = false;
 
@@ -20,7 +20,7 @@ bool SensorModule::initVL(TwoWire* wireInstance) {
   }
 
   if (!m_vlOk) {
-    digitalWrite(m_xshutPin, LOW);  // Apagar si falla
+    digitalWrite(m_xshutPin, LOW);  // Power off on failure
   }
   return m_vlOk;
 }
@@ -34,7 +34,7 @@ int16_t SensorModule::readVL() {
   VL53L0X_RangingMeasurementData_t measure;
   m_vlSensor.rangingTest(&measure, false);
 
-  // Aceptar cualquier lectura excepto Error 4 (Out of Range insalvable)
+  // Accept any reading except Error 4 (unrecoverable out of range)
   m_lastVlCm = (measure.RangeStatus == 4)
                  ? -1
                  : static_cast<int16_t>(measure.RangeMilliMeter / 10);
@@ -44,24 +44,24 @@ int16_t SensorModule::readVL() {
 int16_t SensorModule::readUS() {
   if (!m_usOk) return -1;
 
-  // Disparo TRIG de 10us
+  // 10 us TRIG pulse
   digitalWrite(m_trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(m_trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(m_trigPin, LOW);
 
-  // Timeout optimizado a 9000 us (~155 cm máx) para evitar bloqueos del loop
+  // Timeout tuned to 9000 us (~155 cm max) to avoid blocking the loop
   unsigned long duration = pulseIn(m_echoPin, HIGH, 9000UL);
   int16_t rawCm = (duration == 0) ? -1 : static_cast<int16_t>(duration / 58);
 
-  // Aplicar filtro de mediana para descartar picos por telas o ángulos oblicuos
+  // Apply median filter to discard spikes from fabrics or oblique angles
   m_usBuffer[m_bufferIdx % MEDIAN_WINDOW] = rawCm;
   m_bufferIdx++;
 
   int16_t filteredUs = computeMedian(m_usBuffer, MEDIAN_WINDOW);
 
-  // Compensación de offset: Alinear marco de referencia con el sensor VL (+6 cm)
+  // Offset compensation: align reference frame with the VL sensor (+6 cm)
   m_lastUsCm = (filteredUs > 0) ? filteredUs + US_OFFSET_CM : -1;
 
   return m_lastUsCm;
@@ -77,7 +77,7 @@ int16_t SensorModule::computeMedian(int16_t* buf, uint8_t size) {
 
   if (count == 0) return -1;
 
-  // Inserción simple para ordenar array pequeño
+  // Simple insertion sort for a small array
   for (uint8_t i = 1; i < count; i++) {
     int16_t key = temp[i];
     int8_t j = i - 1;
@@ -95,21 +95,21 @@ int16_t SensorModule::updateAndFuse() {
   int16_t vl = readVL();
   int16_t us = readUS();
 
-  // 1. Detección de Anomalía de Cercanía Extrema:
-  // Si el VL detecta pegado (<= 10 cm) y el US rebota en falso (> 200 cm), invalidar US.
+  // 1. Extreme-proximity anomaly detection:
+  // If the VL detects something very close (<= 10 cm) and the US bounces falsely (> 200 cm), invalidate the US.
   if (vl > 0 && vl <= 10 && us > 200) {
     us = -1;
   }
 
-  // 2. Matriz de Priorización y Fusión
+  // 2. Prioritization and fusion matrix
   if (vl > 0 && us > 0) {
-    m_fusedCm = (vl <= 120) ? vl : us;  // Corto/medio: ToF | Largo: Ultrasonido
+    m_fusedCm = (vl <= 120) ? vl : us;  // Short/medium: ToF | Long: Ultrasonic
   } else if (vl > 0) {
-    m_fusedCm = vl;  // Fallback automático a VL
+    m_fusedCm = vl;  // Automatic fallback to VL
   } else if (us > 0) {
-    m_fusedCm = us;  // Fallback automático a Ultrasonido
+    m_fusedCm = us;  // Automatic fallback to Ultrasonic
   } else {
-    m_fusedCm = 0;  // Sin lectura válida
+    m_fusedCm = 0;  // No valid reading
   }
 
   return m_fusedCm;

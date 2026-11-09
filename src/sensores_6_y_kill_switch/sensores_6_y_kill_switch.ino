@@ -4,9 +4,9 @@
 #include "HardwareInterruptManager.hpp"
 
 #define NUM_MODULES 6
-#define LOOP_PERIOD_MS 25 // Ejecución constante a 40 Hz
+#define LOOP_PERIOD_MS 25 // Constant execution at 40 Hz
 
-// Configuración de Hardware (M1 a M6)
+// Hardware configuration (M1 to M6)
 SensorModule modules[NUM_MODULES] = {
     SensorModule(13, 12, 30, 0x30), // M1: Front (0°)
     SensorModule(34, 28, 32, 0x31), // M2: Diag Left (-45°)
@@ -23,10 +23,10 @@ void setup() {
     while (!Serial && millis() < 2000);
 
     Wire.begin();
-    Wire.setClock(400000); // Bus I2C en Modo 400Hz,100Hz es estándar
+    Wire.setClock(400000); // I2C bus in 400 kHz fast mode (100 kHz is standard)
     delay(50);
 
-    // Apagar todos los VL53L0X vía XSHUT antes de inicializar
+    // Turn off all VL53L0X sensors via XSHUT before initializing
     const uint8_t xshutPins[NUM_MODULES] = {30, 32, 2, 3, 4, 5};
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         pinMode(xshutPins[i], OUTPUT);
@@ -34,13 +34,13 @@ void setup() {
     }
     delay(50);
 
-    // Inicializar módulos de sensores
+    // Initialize sensor modules
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         modules[i].initUS();
         modules[i].initVL(&Wire);
     }
 
-    initInterrupts(); // Inicializa EXTI (El pinMode de tu Kill Switch vive aquí dentro)
+    initInterrupts(); // Initialize EXTI (the Kill Switch pinMode lives in here)
 
 }
 
@@ -51,19 +51,19 @@ void loop() {
 
     int16_t fusedReads[NUM_MODULES];
 
-    // 1. Inyectar tiempos leídos por el hardware EXTI (corresponden a lo que viajó en los últimos 25ms)
+    // 1. Inject the durations measured by the EXTI hardware (they correspond to what traveled in the last 25 ms)
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         modules[i].setUltrasonicTime(getEchoTime(i));
     }
 
-    // 2. Fusionar las lecturas
+    // 2. Fuse the readings
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         modules[i].updateAndFuse();
         fusedReads[i] = modules[i].getFusedDistance();
         if (fusedReads[i] < 0) fusedReads[i] = 0;
     }
 
-    // 3. Leer Kill Switch asíncrono y armar la trama
+    // 3. Read the asynchronous Kill Switch and build the frame
     uint8_t ksState = getKillSwitchState();
 
     char serialBuffer[64];
@@ -75,7 +75,7 @@ void loop() {
 
     Serial.println(serialBuffer);
 
-    // 4. Disparar los ultrasonidos (TRIG) para que el sonido viaje de cara al SIGUIENTE ciclo
+    // 4. Fire the ultrasonic TRIGs so the sound travels toward the NEXT cycle
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         modules[i].triggerUS();
     }

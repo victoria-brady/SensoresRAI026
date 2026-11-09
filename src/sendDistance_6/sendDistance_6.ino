@@ -3,9 +3,9 @@
 #include "sensores.hpp"
 
 #define NUM_MODULES 6
-#define LOOP_PERIOD_MS 25 // Ejecución constante a 40 Hz
+#define LOOP_PERIOD_MS 25 // Constant execution at 40 Hz
 
-// Configuración de Hardware (M1 a M6)
+// Hardware configuration (M1 to M6)
 SensorModule modules[NUM_MODULES] = {
     SensorModule(13, 12, 30, 0x30), // M1: Front (0°)
     SensorModule(34, 28, 32, 0x31), // M2: Diag Left (-45°)
@@ -22,10 +22,10 @@ void setup() {
     while (!Serial && millis() < 2000);
 
     Wire.begin();
-    Wire.setClock(400000); // Bus I2C en Modo 400Hz,100Hz es estándar
+    Wire.setClock(400000); // I2C bus in 400 kHz fast mode (100 kHz is standard)
     delay(50);
 
-    // Apagar todos los VL53L0X vía XSHUT antes de inicializar
+    // Turn off all VL53L0X sensors via XSHUT before initializing
     const uint8_t xshutPins[NUM_MODULES] = {30, 32, 2, 3, 4, 5};
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         pinMode(xshutPins[i], OUTPUT);
@@ -33,7 +33,7 @@ void setup() {
     }
     delay(50);
 
-    // Inicializar módulos de sensores
+    // Initialize sensor modules
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         modules[i].initUS();
         modules[i].initVL(&Wire);
@@ -47,18 +47,18 @@ void loop() {
 
     int16_t fusedReads[NUM_MODULES];
 
-    // Actualizar sensores y obtener la distancia fusionada por módulo
+    // Update sensors and get the fused distance for each module
     for (uint8_t i = 0; i < NUM_MODULES; i++) {
         modules[i].updateAndFuse();
         fusedReads[i] = modules[i].getFusedDistance();
 
-        // 0 = Sin lectura válida este ciclo (evita enviar valores negativos a la Jetson)
+        // 0 = No valid reading this cycle (avoids sending negative values to the Jetson)
         if (fusedReads[i] < 0) {
             fusedReads[i] = 0;
         }
     }
 
-    // Trama formateada con 6 datos fusionados: S<M1>,<M2>,<M3>,<M4>,<M5>,<M6>E
+    // Frame formatted with 6 fused values: S<M1>,<M2>,<M3>,<M4>,<M5>,<M6>E
     char serialBuffer[64];
     snprintf(serialBuffer, sizeof(serialBuffer),
              "S%d,%d,%d,%d,%d,%dE",

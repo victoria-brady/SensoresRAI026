@@ -1,9 +1,9 @@
 #include "Adafruit_VL53L0X.h"
 #include <ArduinoBLE.h>
 
-// Definir el Servicio y la Característica UUID
-BLEService gigaService("19B10000-E8F2-537E-4F6C-D104768A1214"); 
-// Aumentamos el tamaño máximo a 30 caracteres para que entren los 3 datos
+// Define the Service and Characteristic UUIDs
+BLEService gigaService("19B10000-E8F2-537E-4F6C-D104768A1214");
+// Max size increased to 30 characters so all 3 values fit
 BLEStringCharacteristic gigaChar("19B10001-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify, 30);
 
 #define TRIG 9
@@ -61,7 +61,7 @@ void setup() {
   Serial.begin(115200);
 
   if (!BLE.begin()) {
-    //Serial.println("¡Error al iniciar Bluetooth!");
+    //Serial.println("Error starting Bluetooth!");
     while (1);
   }
 
@@ -71,8 +71,8 @@ void setup() {
   BLE.addService(gigaService);
 
   BLE.advertise();
-  //Serial.println("Bluetooth activo, esperando conexión...");
-  
+  //Serial.println("Bluetooth active, waiting for connection...");
+
   pinMode(SHT_LOX1, OUTPUT);
   pinMode(SHT_LOX2, OUTPUT);
   digitalWrite(SHT_LOX1, LOW);
@@ -87,39 +87,39 @@ void loop() {
   BLEDevice central = BLE.central();
 
   if (central) {
-    //Serial.print("Conectado a: ");
+    //Serial.print("Connected to: ");
     //Serial.println(central.address());
 
     while (central.connected()) {
-      // 1. Leemos los sensores VL53L0X
+      // 1. Read the VL53L0X sensors
       read_dual_sensors();
-      
-      // Manejamos casos donde estén fuera de rango (-1 será nuestro código de error)
+
+      // Handle out-of-range cases (-1 is our error code)
       int dist_vl1 = (measure1.RangeStatus != 4) ? measure1.RangeMilliMeter : -1;
       int dist_vl2 = (measure2.RangeStatus != 4) ? measure2.RangeMilliMeter : -1;
 
-      // 2. Leemos el ultrasónico
+      // 2. Read the ultrasonic sensor
       digitalWrite(TRIG, LOW);
       delayMicroseconds(2);
       digitalWrite(TRIG, HIGH);
       delayMicroseconds(10);
       digitalWrite(TRIG, LOW);
-      duration = pulseIn(ECHO, HIGH, 30000); //30ms de timeout
-      
-      // Velocidad del sonido en mm/us (te dará la distancia en milímetros)
-      distance_US = duration * 0.34 / 2; 
+      duration = pulseIn(ECHO, HIGH, 30000); // 30 ms timeout
 
-      // 3. Armamos el paquete de datos separado por comas
-      String datos = String(dist_vl1) + "," + String(dist_vl2) + "," + String(distance_US, 1);
-      
-      // Imprimimos en Arduino para verificar
-      //Serial.println("Enviando: " + datos);
+      // Speed of sound in mm/us (gives the distance in millimeters)
+      distance_US = duration * 0.34 / 2;
 
-      // 4. Enviamos por Bluetooth
-      gigaChar.writeValue(datos);
-      
-      delay(200); // 2 veces por segundo es un buen ritmo para BLE
+      // 3. Build the comma-separated data packet
+      String payload = String(dist_vl1) + "," + String(dist_vl2) + "," + String(distance_US, 1);
+
+      // Print on Arduino to verify
+      //Serial.println("Sending: " + payload);
+
+      // 4. Send over Bluetooth
+      gigaChar.writeValue(payload);
+
+      delay(200); // Twice per second is a good rate for BLE
     }
-   // Serial.println("Desconectado de la PC");
+   // Serial.println("Disconnected from PC");
   }
 }
